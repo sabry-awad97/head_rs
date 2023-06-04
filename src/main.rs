@@ -20,6 +20,9 @@ struct Cli {
 
     #[structopt(short = "b", long = "bytes")]
     num_bytes: Option<usize>,
+
+    #[structopt(short = "o", long = "offset")]
+    byte_offset: Option<usize>,
 }
 
 fn read_lines<R: Read>(
@@ -27,6 +30,7 @@ fn read_lines<R: Read>(
     num_lines: usize,
     line_numbers: bool,
     num_bytes: Option<usize>,
+    byte_offset: Option<usize>,
 ) -> io::Result<()> {
     let reader = BufReader::new(reader);
     let mut line_count = 0;
@@ -44,6 +48,13 @@ fn read_lines<R: Read>(
         }
 
         if let Ok(line) = line {
+            if let Some(byte_offset) = byte_offset {
+                if byte_count < byte_offset {
+                    byte_count += line.len() + 1;
+                    continue;
+                }
+            }
+
             if line_numbers {
                 println!("{:>6} {}", line_count + 1, line);
             } else {
@@ -63,10 +74,22 @@ fn main() -> io::Result<()> {
     if args.use_stdin {
         let stdin = io::stdin();
         let handle = stdin.lock();
-        read_lines(handle, args.num_lines, args.line_numbers, args.num_bytes)?;
+        read_lines(
+            handle,
+            args.num_lines,
+            args.line_numbers,
+            args.num_bytes,
+            args.byte_offset,
+        )?;
     } else if let Some(file_path) = args.file_path {
         let file = File::open(file_path)?;
-        read_lines(file, args.num_lines, args.line_numbers, args.num_bytes)?;
+        read_lines(
+            file,
+            args.num_lines,
+            args.line_numbers,
+            args.num_bytes,
+            args.byte_offset,
+        )?;
     } else {
         eprintln!("No file or stdin specified.");
     }
