@@ -29,6 +29,9 @@ struct Cli {
 
     #[structopt(short = "t", long = "truncate")]
     truncate: bool,
+
+    #[structopt(short = "r", long = "reverse")]
+    reverse: bool,
 }
 
 fn read_lines<R: Read>(
@@ -39,54 +42,61 @@ fn read_lines<R: Read>(
     byte_offset: Option<usize>,
     paginate: bool,
     truncate: bool,
+    reverse: bool,
 ) -> io::Result<()> {
     let reader = BufReader::new(reader);
-    let mut line_count = 0;
     let mut byte_count = 0;
+    let mut lines = Vec::new();
 
     for line in reader.lines() {
         let line = line?;
-        let line_length = line.len();
-        if line_count >= num_lines {
-            break;
-        }
+        lines.push(line);
+    }
 
-        if let Some(num_bytes) = num_bytes {
-            if byte_count >= num_bytes {
-                break;
+    if reverse {
+        lines.reverse();
+    }
+
+    for (line_count, line) in lines.iter().enumerate() {
+        if line_count <= num_lines {
+            if let Some(num_bytes) = num_bytes {
+                if byte_count >= num_bytes {
+                    break;
+                }
             }
-        }
 
-        if let Some(byte_offset) = byte_offset {
-            if byte_count < byte_offset {
-                byte_count += line_length + 1;
-                continue;
+            if let Some(byte_offset) = byte_offset {
+                if byte_count < byte_offset {
+                    byte_count += line.len() + 1;
+                    continue;
+                }
             }
-        }
 
-        if truncate && line_length > 80 {
-            if line_numbers {
-                println!("{:>6} {}", line_count + 1, line[..77].to_string() + "...");
+            if truncate && line.len() > 80 {
+                if line_numbers {
+                    println!("{:>6} {}", line_count + 1, line[..77].to_string() + "...");
+                } else {
+                    println!("{}", line[..77].to_string() + "...");
+                }
             } else {
-                println!("{}", line[..77].to_string() + "...");
+                if line_numbers {
+                    println!("{:>6} {}", line_count + 1, line);
+                } else {
+                    println!("{}", line);
+                }
+            }
+
+            byte_count += line.len() + 1;
+
+            if paginate {
+                let mut input = String::new();
+                io::stdin().read_line(&mut input)?;
+                if input.trim().to_lowercase() == "q" {
+                    break;
+                }
             }
         } else {
-            if line_numbers {
-                println!("{:>6} {}", line_count + 1, line);
-            } else {
-                println!("{}", line);
-            }
-        }
-
-        line_count += 1;
-        byte_count += line_length + 1;
-
-        if paginate {
-            let mut input = String::new();
-            io::stdin().read_line(&mut input)?;
-            if input.trim().to_lowercase() == "q" {
-                break;
-            }
+            break;
         }
     }
 
@@ -107,6 +117,7 @@ fn main() -> io::Result<()> {
             args.byte_offset,
             args.paginate,
             args.truncate,
+            args.reverse,
         )?;
     } else if let Some(file_path) = args.file_path {
         let file = File::open(file_path)?;
@@ -118,6 +129,7 @@ fn main() -> io::Result<()> {
             args.byte_offset,
             args.paginate,
             args.truncate,
+            args.reverse,
         )?;
     } else {
         eprintln!("No file or stdin specified.");
