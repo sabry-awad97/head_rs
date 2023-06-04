@@ -62,3 +62,17 @@ fn test_with_line_numbers() -> TestResult<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_with_num_bytes() -> TestResult<()> {
+    let mut cmd = Command::cargo_bin(PROGRAM_NAME)?;
+    cmd.arg("tests/data/sample.txt")
+        .arg("-b")
+        .arg("3")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("1"))
+        .stdout(predicate::str::contains("2"));
+
+    Ok(())
+}

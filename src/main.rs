@@ -17,16 +17,32 @@ struct Cli {
 
     #[structopt(short = "l", long = "line-numbers")]
     line_numbers: bool,
+
+    #[structopt(short = "b", long = "bytes")]
+    num_bytes: Option<usize>,
 }
 
-fn read_lines<R: Read>(reader: R, num_lines: usize, line_numbers: bool) -> io::Result<()> {
+fn read_lines<R: Read>(
+    reader: R,
+    num_lines: usize,
+    line_numbers: bool,
+    num_bytes: Option<usize>,
+) -> io::Result<()> {
     let reader = BufReader::new(reader);
     let mut line_count = 0;
+    let mut byte_count = 0;
 
     for line in reader.lines() {
         if line_count >= num_lines {
             break;
         }
+
+        if let Some(num_bytes) = num_bytes {
+            if byte_count >= num_bytes {
+                break;
+            }
+        }
+
         if let Ok(line) = line {
             if line_numbers {
                 println!("{:>6} {}", line_count + 1, line);
@@ -34,6 +50,7 @@ fn read_lines<R: Read>(reader: R, num_lines: usize, line_numbers: bool) -> io::R
                 println!("{}", line);
             }
             line_count += 1;
+            byte_count += line.len() + 1;
         }
     }
 
@@ -46,10 +63,10 @@ fn main() -> io::Result<()> {
     if args.use_stdin {
         let stdin = io::stdin();
         let handle = stdin.lock();
-        read_lines(handle, args.num_lines, args.line_numbers)?;
+        read_lines(handle, args.num_lines, args.line_numbers, args.num_bytes)?;
     } else if let Some(file_path) = args.file_path {
         let file = File::open(file_path)?;
-        read_lines(file, args.num_lines, args.line_numbers)?;
+        read_lines(file, args.num_lines, args.line_numbers, args.num_bytes)?;
     } else {
         eprintln!("No file or stdin specified.");
     }
