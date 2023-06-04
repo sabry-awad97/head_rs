@@ -23,6 +23,9 @@ struct Cli {
 
     #[structopt(short = "o", long = "offset")]
     byte_offset: Option<usize>,
+
+    #[structopt(short = "p", long = "paginate")]
+    paginate: bool,
 }
 
 fn read_lines<R: Read>(
@@ -31,6 +34,7 @@ fn read_lines<R: Read>(
     line_numbers: bool,
     num_bytes: Option<usize>,
     byte_offset: Option<usize>,
+    paginate: bool,
 ) -> io::Result<()> {
     let reader = BufReader::new(reader);
     let mut line_count = 0;
@@ -62,6 +66,14 @@ fn read_lines<R: Read>(
             }
             line_count += 1;
             byte_count += line.len() + 1;
+
+            if paginate {
+                let mut input = String::new();
+                io::stdin().read_line(&mut input)?;
+                if input.trim().to_lowercase() == "q" {
+                    break;
+                }
+            }
         }
     }
 
@@ -80,6 +92,7 @@ fn main() -> io::Result<()> {
             args.line_numbers,
             args.num_bytes,
             args.byte_offset,
+            args.paginate,
         )?;
     } else if let Some(file_path) = args.file_path {
         let file = File::open(file_path)?;
@@ -89,6 +102,7 @@ fn main() -> io::Result<()> {
             args.line_numbers,
             args.num_bytes,
             args.byte_offset,
+            args.paginate,
         )?;
     } else {
         eprintln!("No file or stdin specified.");
